@@ -144,13 +144,13 @@ chmod +x kali-$architecture/third-stage
 LANG=C chroot kali-$architecture /third-stage
 
 # Kismet configuration to work with gpsd and socat
-sed -i 's/gpshost=localhost:2947/gpshots=127.0.0.1:2947/g' kali-$architecture/etc/kismet.conf
+sed -i 's/gpshost=localhost:2947/gpshots=127.0.0.1:2947/g' kali-$architecture/etc/kismet/kismet.conf
 
 # DNSMASQ Configuration options for optional access point
 # Default access point would be wlan0 however external USB
 # Might be utilitized so a configuration script could be made
 
-sed -i 's#^DAEMON_CONF=.*#DAEMON_CONF=/etc/hostapd/hostapd.conf#' kali-$arcitecture/etc/init.d/hostapd
+sed -i 's#^DAEMON_CONF=.*#DAEMON_CONF=/etc/hostapd/hostapd.conf#' kali-$architecture/etc/init.d/hostapd
 
 cat <<EOF > kali-$architecture/etc/dnsmasq.conf
 log-facility=/var/log/dnsmasq.log
