@@ -143,12 +143,17 @@ EOF
 chmod +x kali-$architecture/third-stage
 LANG=C chroot kali-$architecture /third-stage
 
-# Kismet configuration to work with gpsd and socat
+# Modify kismet configuration to work with gpsd and socat
+sed -i 's/\# logprefix=\/some\/path\/to\/logs/logprefix=\/captures\/kismet/g' kali-$architecture/etc/kismet/kismet.conf
 sed -i 's/gpshost=localhost:2947/gpshots=127.0.0.1:2947/g' kali-$architecture/etc/kismet/kismet.conf
+
+# Modify Wifite log saving folder
+sed -i 's/hs/\/captures/g' kali-$architecture/etc/kismet/kismet.conf
+
 
 # DNSMASQ Configuration options for optional access point
 # Default access point would be wlan0 however external USB
-# Might be utilitized so a configuration script could be made
+# Might be utilitized so this will be changed through a bash script
 
 sed -i 's#^DAEMON_CONF=.*#DAEMON_CONF=/etc/hostapd/hostapd.conf#' kali-$architecture/etc/init.d/hostapd
 
@@ -176,8 +181,7 @@ EOF
 # Add missing folders to chroot needed
 cap=kali-$architecture/captures
 
-mkdir -p kali-$architecture/sdcard
-mkdir -p kali-$architecture/system
+mkdir -p kali-$architecture/sdcard kali-$architecture/system
 mkdir -p $cap/evilap $cap/ettercap $cap/kismet/db $cap/nmap $cap/sslstrip $cap/tshark $cap/wifite
 
 # TEST CHROOT FOR DEBGGING
@@ -206,36 +210,44 @@ mkdir -p $cap/evilap $cap/ettercap $cap/kismet/db $cap/nmap $cap/sslstrip $cap/t
 
 #####################################################
 #  Create flashable Android FS
-#  flashable zip will follow structure:
-#  /META-INF/com/google/android/updater-binary - Binary file for edify script
-#  /META-INF/com/google/android/updater-script - Edify script to install Kali 
+#  flashable zip will need follow structure:
+#
+#  /busybox/busybox - for mounting data folders
 #  /data/local/kalifs.tar.bz2 - The filesystem
 #  /data/local/tmp_kali - shell scripts to unzip filesystem/boot chroot
-#  /busybox/busybox - for mounting
+#  /kernel/zImage - kernel
+#  /META-INF/com/google/android/updater-binary - Binary file for edify script
+#  /META-INF/com/google/android/updater-script - Edify script to install Kali 
 #####################################################
 
-#git clone https://github.com/koush/AnyKernel.git ${basedir}/flash & rm -rf ${basedir}/flash/system 
-#chmod +x ${basedir}/flash/META-INF/com/google/android/update-binary
-#rm -rf  ${basedir}/flash/kernel # add in later if adding kernel
-#mkdir -p ${basedir}/flash/data/local/ ${basedir}/flash/data/tmp_kali
+# Create base flashable zip using Koush's AnyKernel
 
-#cat << EOF > ${basedir}/flash/data/tmp_kali/extractkali.sh 
-#!/sbin/sh
-#
+git clone https://github.com/koush/AnyKernel.git ${basedir}/flash & rm -rf ${basedir}/flash/system 
+chmod +x ${basedir}/flash/META-INF/com/google/android/update-binary
+mkdir -p ${basedir}/flash/data/local/ ${basedir}/flash/data/tmp_kali ${basedir}/flash/busybox ${basedir}/flash/kernel 
+#wget -P #FIND BUSYBOX INSTALL# ${basedir}/flash/busybox
+# terminal application needed to work with chroot
+wget -P ${basedir}/flash/data/app/ http://jackpal.github.com/Android-Terminal-Emulator/downloads/Term.apk
+
+# tmp kali script used to extract rootfs to /data/local/
+
+cat << EOF > ${basedir}/flash/data/tmp_kali/extractkali.sh 
+!/sbin/sh
+
 # extract kali
-#
-#if [ -d "/data/local/kali"]; then
-#	rm /data/local/kalifs.tar.bz2
-#	echo "Kali folder detected...skipping extraction"
-#else
-#	tar -jxvf /data/local/kalifs.tar.bz2 -C /data/local
-#	rm /data/local/kalifs.tar.bz2
-#fi
-#EOF
+
+if [ -d "/data/local/kali"]; then
+	rm /data/local/kalifs.tar.bz2
+	echo "Kali folder detected...skipping extraction"
+else
+	tar -jxvf /data/local/kalifs.tar.bz2 -C /data/local
+	rm /data/local/kalifs.tar.bz2
+fi
+EOF
 
 # Compress filesystem and add to our flashable zip
-#echo "Compressing filesystem into kalifs.tar.bz2"
-#tar jcvf ${basedir}/flash/data/local/kali/kalifs.tar.bz2 kali-$architecture
+tar jcvf ${basedir}/flash/data/local/kali/kalifs.tar.bz2 kali-$architecture
+
 
 # Clean up all the temporary build stuff and remove the directories.
 # Comment this out to keep things around if you want to see what may have gone
