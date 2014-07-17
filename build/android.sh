@@ -208,11 +208,14 @@ mkdir -p $cap/evilap $cap/ettercap $cap/kismet/db $cap/nmap $cap/sslstrip $cap/t
 #umount kali-$architecture/dev/
 #umount kali-$architecture/proc
 
+
+
 #####################################################
 #  Create flashable Android FS
 #  flashable zip will need follow structure:
 #
 #  /busybox/busybox - for mounting data folders
+#  /data/app/terminal.apk - download terminal to ensure access to chroot
 #  /data/local/kalifs.tar.bz2 - The filesystem
 #  /data/local/tmp_kali - shell scripts to unzip filesystem/boot chroot
 #  /kernel/zImage - kernel
@@ -225,8 +228,8 @@ mkdir -p $cap/evilap $cap/ettercap $cap/kismet/db $cap/nmap $cap/sslstrip $cap/t
 git clone https://github.com/koush/AnyKernel.git ${basedir}/flash & rm -rf ${basedir}/flash/system 
 chmod +x ${basedir}/flash/META-INF/com/google/android/update-binary
 mkdir -p ${basedir}/flash/data/local/ ${basedir}/flash/data/tmp_kali ${basedir}/flash/busybox ${basedir}/flash/kernel 
-#wget -P #FIND BUSYBOX INSTALL# ${basedir}/flash/busybox
-# terminal application needed to work with chroot
+# Maybe compile busybox with toolchain
+wget -P http://benno.id.au/android/busybox ${basedir}/flash/busybox
 wget -P ${basedir}/flash/data/app/ http://jackpal.github.com/Android-Terminal-Emulator/downloads/Term.apk
 
 # tmp kali script used to extract rootfs to /data/local/
@@ -245,8 +248,54 @@ else
 fi
 EOF
 
+cat << EOF > ${basedir}/flash/META-INF/com/google/android/updater-script
+ui_print("AnyKernel Updater by Koush.");
+ui_print("Extracting System Files...");
+set_progress(1.000000);
+mount("MTD", "system", "/system");
+package_extract_dir("system", "/system");
+unmount("/system");
+ui_print("Extracting Kernel files...");
+package_extract_dir("kernel", "/tmp");
+ui_print("Installing kernel...");
+set_perm(0, 0, 0777, "/tmp/dump_image");
+set_perm(0, 0, 0777, "/tmp/mkbootimg.sh");
+set_perm(0, 0, 0777, "/tmp/mkbootimg");
+set_perm(0, 0, 0777, "/tmp/unpackbootimg");
+run_program("/tmp/dump_image", "boot", "/tmp/boot.img");
+run_program("/tmp/unpackbootimg", "/tmp/boot.img", "/tmp/");
+run_program("/tmp/mkbootimg.sh");
+write_raw_image("/tmp/newboot.img", "boot");
+
 # Compress filesystem and add to our flashable zip
 tar jcvf ${basedir}/flash/data/local/kali/kalifs.tar.bz2 kali-$architecture
+
+#####################################################
+# Create Nexus 10 Kernel (4.4+)
+#####################################################
+# Set paths
+export ARCH=arm 
+export PATH=$PATH:${basedir}/toolchain/bin
+export CCOMPILE=$CROSS_COMPILE 
+export CROSS_COMPILE=arm-eabi-
+# Get android toolchain to compile kernel
+wget https://releases.linaro.org/13.04/components/android/toolchain/4.8/android-toolchain-eabi-linaro-4.8-2013.04-2-2013-04-13_12-04-23-linux-x86.tar.bz2 -O toolchain.tar.bz2
+tar xvf toolchain.tar.bz2
+rm toolchain.tar.bz2 & mv android-toolchain-eabi toolchain
+# Using Thunderkat kernel but feel free to change
+git clone https://github.com/craigacgomez/kernel_samsung_manta.git -b thunderkat ${basedir}/kernel
+cd ${basedir}/kernel
+# Applying wireless patches
+mkdir -p ../patches
+wget http://patches.aircrack-ng.org/mac80211.compat08082009.wl_frag+ack_v1.patch -O ../patches/mac80211.patch
+wget http://patches.aircrack-ng.org/channel-negative-one-maxim.patch -O ../patches/negative.patch
+patch -p1 --no-backup-if-mismatch < ../patches/mac80211.patch
+patch -p1 --no-backup-if-mismatch < ../patches/negative.patch
+make clean
+make thunderkat_manta_defconfig
+make -j $(grep -c processor /proc/cpuinfo)
+cp arch/arm/boot/zImage ${basedir}/flash/kernel/zImage
+cd ..
 
 
 # Clean up all the temporary build stuff and remove the directories.
