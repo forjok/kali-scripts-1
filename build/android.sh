@@ -210,11 +210,10 @@ mkdir -p $cap/evilap $cap/ettercap $cap/kismet/db $cap/nmap $cap/sslstrip $cap/t
 #umount kali-$architecture/dev/
 #umount kali-$architecture/proc
 
-
-
 #####################################################
-#  Create flashable Android FS
-#  flashable zip will need follow structure:
+#  Create flashable Android FS.  Git repository holds necessary
+#  folders/scripts/files.
+#  Flashable zip will need follow structure:
 #
 #  /busybox/busybox - for mounting data folders
 #  /data/app/terminal.apk - download terminal to ensure access to chroot
@@ -225,108 +224,17 @@ mkdir -p $cap/evilap $cap/ettercap $cap/kismet/db $cap/nmap $cap/sslstrip $cap/t
 #  /META-INF/com/google/android/updater-script - Edify script to install Kali 
 #####################################################
 
-# Create base flashable zip using Koush's AnyKernel
-git clone https://github.com/koush/AnyKernel.git ${basedir}/flash
-rm -rf ${basedir}/flash/system/lib 
+# Create base flashable zip
 
-# Create necessary folders for flashing
-mkdir -p ${basedir}/flash/data/local/ ${basedir}/flash/data/tmp_kali ${basedir}/flash/busybox ${basedir}/flash/kernel ${basedir}/flash/system/etc/firmware 
+git clone https://github.com/binkybear/flash.git ${basedir}/flash
 
-# Maybe compile busybox with Android toolchain instead and download terminal application....
-wget -P http://benno.id.au/android/busybox ${basedir}/flash/busybox
+# Add terminal application to zip
+mkdir -p ${basedir}/flash/data/app/
 wget -P ${basedir}/flash/data/app/ http://jackpal.github.com/Android-Terminal-Emulator/downloads/Term.apk
-
-# Download external usb firmware
-wget https://github.com/binkybear/kali-scripts/raw/master/firmware/carl9170-1.fw -O ${basedir}/flash/system/etc/firmware/carl9170-1.fw
-wget https://github.com/binkybear/kali-scripts/raw/master/firmware/htc_7010.fw -O ${basedir}/flash/system/etc/firmware/htc_7010.fw
-wget https://github.com/binkybear/kali-scripts/raw/master/firmware/htc_9271.fw -O ${basedir}/flash/system/etc/firmware/htc_9271.fw
-wget https://github.com/binkybear/kali-scripts/raw/master/firmware/rt3070.bin -O ${basedir}/flash/system/etc/firmware/rt3070.bin
-
-# tmp kali script used to extract rootfs to /data/local/
-cat << EOF > ${basedir}/flash/data/tmp_kali/extractkali.sh 
-!/sbin/sh
-if [ -d "/data/local/kali"]; then
-	rm /data/local/kalifs.tar.bz2
-	echo "Kali folder detected...skipping extraction"
-else
-	tar -jxvf /data/local/kalifs.tar.bz2 -C /data/local
-	rm /data/local/kalifs.tar.bz2
-fi
-EOF
-
-# bootkali script for /data/local/ which will launch the Kali chroot
-
-
-# Create updater-script that will be the installer
-
-cat << EOF > ${basedir}/flash/META-INF/com/google/android/updater-script
-ui_print("************************************************");
-ui_print("****__****__*******___*********__********__*****");
-ui_print("***|\__\*/\__\****/\___\******|\__\*****|\__\***");
-ui_print("***||  |/ /  /***/ /    \*****||  |*****||  |***");
-ui_print("***||  | /  /***/ /  /,  \****||  |*****||  |***");
-ui_print("***||  |/  /***/ /  /__\  \***||  |*****||  |***");
-ui_print("***||  |\  \**/ /  ______  \**||  |___ *||  |***");
-ui_print("***||  |*\  \/ /  /******\  \*||  |____\||  |***");
-ui_print("***\|__|**\__\/__/********\_ \||_______|\|__|***");
-ui_print("************************************************");
-ui_print("************************************************");
-ui_print("AnyKernel Updater by Koush.");
-ui_print("Extracting System Files...");
-show_progress(1.34, 700);
-package_extract_dir("busybox", "/tmp");
-set_perm(0, 0, 0755, "/tmp/busybox");
-ui_print("*Installing Kali chroot...                     *");
-ui_print("*Be aware, this will take ~30 minutes..        *");
-ui_print("*Mounting system and rootfs...                 *");
-run_program("/tmp/busybox", "mount", "/system");
-run_program("/tmp/busybox", "mount", "-o", "rw,remount", "/system", "/system");
-run_program("/tmp/busybox", "mount", "/data");
-run_program("/tmp/busybox", "mount", "-o", "rw,remount", "/", "/");
-ui_print("*Removing any old terminal/ssh applications... *");
-delete("/system/app/Term.apk", "/system/app/com.android.term1.apk", "/system/app/com.android.term2.apk", 
-"/system/app/com.android.term3.apk", "/system/app/com.android.term4.apk", "/system/app/com.android.term5.apk", "/system/app/jackpal.androidterm.apk", 
-"/system/app/jackpal.androidterm-1.apk", "/system/app/jackpal.androidterm-2.apk", "/system/app/AndroidTerm.apk", 
-"/system/app/AndroidTerm-1.apk", "/system/app/AndroidTerm-2.apk", "/data/app/Term.apk", "/data/app/jackpal.androidterm.apk", 
-"/data/app/jackpal.androidterm-1.apk", "/data/app/jackpal.androidterm-2.apk", "/data/app/AndroidTerm.apk", "/data/app/AndroidTerm-1.apk", "/data/app/AndroidTerm-2.apk");
-ui_print("*Extracting system files and applications...   *");
-package_extract_dir("system", "/system");
-set_perm_recursive(0, 2000, 0755, 0755, "/system/bin");
-set_perm_recursive(0, 2000, 0755, 0755, "/system/xbin");
-ui_print("*Copying compressed Kali 1GB filesystem...     *");
-ui_print("*Along with temporary files...                 *");
-package_extract_dir("data/local", "/data/local");
-package_extract_dir("data/app", "/data/app");
-package_extract_dir("data/tmp_kali", "/tmp");
-package_extract_file("data/tmp_kali/bootkali", "/data/local/bootkali");
-ui_print("*Setting permissions...                        *");
-set_perm(0, 0, 0755, "/data/local/bootkali");
-set_perm(0, 0, 0777, "/data/local/kalifs.tar.bz2");
-set_perm(0, 0, 0755, "/tmp/extractkali.sh");
-ui_print("*Extracting Kali chroot...                     *");
-ui_print("*This takes around 30 minutes...               *");
-run_program("/tmp/extractkali.sh");
-ui_print("*Kali chroot is now successfully installed.    *");
-ui_print("*Extracting Kernel files...");
-package_extract_dir("kernel", "/tmp");
-ui_print("Installing kernel...");
-set_perm(0, 0, 0777, "/tmp/dump_image");
-set_perm(0, 0, 0777, "/tmp/mkbootimg.sh");
-set_perm(0, 0, 0777, "/tmp/mkbootimg");
-set_perm(0, 0, 0777, "/tmp/unpackbootimg");
-run_program("/tmp/dump_image", "boot", "/tmp/boot.img");
-run_program("/tmp/unpackbootimg", "/tmp/boot.img", "/tmp/");
-run_program("/tmp/mkbootimg.sh");
-write_raw_image("/tmp/newboot.img", "boot");
-delete_recursive("/tmp");
-ui_print("*Unmounting system..                           *");
-unmount("/system");
-ui_print("*Unmounting data...                            *");
-unmount("/data");
-EOF
 
 # Compress filesystem and add to our flashable zip
 tar jcvf ${basedir}/flash/data/local/kali/kalifs.tar.bz2 ${basedir}kali-$architecture
+
 
 #####################################################
 # Create Nexus 10 Kernel (4.4+)
@@ -336,7 +244,7 @@ export ARCH=arm
 export SUBARCH=arm
 export CROSS_COMPILE=${basedir}/toolchain/bin/arm-eabi-
 # Get android toolchain to compile kernel
-git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-eabi-4.8 toolchain
+git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-eabi-4.8 ${basedir}/toolchain
 # Using Thunderkat kernel but feel free to change
 git clone https://github.com/craigacgomez/kernel_samsung_manta.git -b thunderkat ${basedir}/kernel
 cd ${basedir}/kernel
@@ -350,8 +258,33 @@ make clean
 make thunderkat_manta_defconfig
 wget https://raw.githubusercontent.com/binkybear/kali-scripts/master/defconfigs/nexus10-thunderkat/thunderkali_defconfig -O .config
 make -j $(grep -c processor /proc/cpuinfo)
-cp ${basedir}/kernel/arch/arm/boot/zImage ${basedir}/flash/kernel/zImage
+cp ${basedir}/kernel/arch/arm/boot/zImage ${basedir}/flash/kernel/kernel
 cd ${basedir}
+
+cat << EOF >> ${basedir}/flash/META-INF/com/google/android/updater-script
+assert(getprop("ro.product.device") == "manta" || getprop("ro.build.product") == "manta");
+ui_print("ThunderKat Kernel - Nexus 10/Manta - Android KitKat 4.4.3/4.4.2/4.4.1");
+ui_print("* MODIFIED FOR KALI LINUX *");
+show_progress(0.500000, 0);
+ui_print("Mounting system...");
+mount("ext4", "EMMC", "/dev/block/platform/dw_mmc.0/by-name/system", "/system");
+ui_print("Deleting old kernel modules...");
+delete_recursive("/system/modules");
+show_progress(0.200000, 0);
+show_progress(0.200000, 10);
+ui_print("Installing kernel...");
+package_extract_dir("kernel", "/tmp");
+set_perm(0, 0, 0777, "/tmp/mkbootimg.sh");
+set_perm(0, 0, 0777, "/tmp/mkbootimg");
+set_perm(0, 0, 0777, "/tmp/unpackbootimg");
+set_perm(0, 0, 0777, "/tmp/busybox");
+run_program("/sbin/busybox", "dd", "if=/dev/block/platform/dw_mmc.0/by-name/boot", "of=/tmp/boot.img");
+run_program("/tmp/unpackbootimg", "-i", "/tmp/boot.img", "-o", "/tmp/");
+run_program("/tmp/mkbootimg.sh");
+run_program("/sbin/busybox", "dd", "if=/tmp/newboot.img", "of=/dev/block/platform/dw_mmc.0/by-name/boot");
+show_progress(0.100000, 0);
+unmount("/system");
+EOF
 
 # Clean up all the temporary build stuff and remove the directories.
 # Comment this out to keep things around if you want to see what may have gone
