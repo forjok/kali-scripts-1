@@ -187,28 +187,28 @@ mkdir -p kali-$architecture/sdcard kali-$architecture/system
 mkdir -p $cap/evilap $cap/ettercap $cap/kismet/db $cap/nmap $cap/sslstrip $cap/tshark $cap/wifite
 
 # TEST CHROOT FOR DEBGGING
- LANG=C chroot kali-$architecture
+# LANG=C chroot kali-$architecture
 
-# CLEANUP STAGE
+CLEANUP STAGE
 
-#cat << EOF > kali-$architecture/cleanup
-#!/bin/bash
-#rm -rf /root/.bash_history
-#apt-get update
-#apt-get clean
-#rm -f /0
-#rm -f /hs_err*
-#rm -f cleanup
-#rm -f /usr/bin/qemu*
-#EOF
+cat << EOF > kali-$architecture/cleanup
+!/bin/bash
+rm -rf /root/.bash_history
+apt-get update
+apt-get clean
+rm -f /0
+rm -f /hs_err*
+rm -f cleanup
+rm -f /usr/bin/qemu*
+EOF
 
-#chmod +x kali-$architecture/cleanup
-#LANG=C chroot kali-$architecture /cleanup
+chmod +x kali-$architecture/cleanup
+LANG=C chroot kali-$architecture /cleanup
 
-#umount kali-$architecture/proc/sys/fs/binfmt_misc
-#umount kali-$architecture/dev/pts
-#umount kali-$architecture/dev/
-#umount kali-$architecture/proc
+umount kali-$architecture/proc/sys/fs/binfmt_misc
+umount kali-$architecture/dev/pts
+umount kali-$architecture/dev/
+umount kali-$architecture/proc
 
 #####################################################
 #  Create flashable Android FS.  Git repository holds necessary
@@ -225,7 +225,6 @@ mkdir -p $cap/evilap $cap/ettercap $cap/kismet/db $cap/nmap $cap/sslstrip $cap/t
 #####################################################
 
 # Create base flashable zip
-
 git clone https://github.com/binkybear/flash.git ${basedir}/flash
 
 # Add terminal application to zip
@@ -233,45 +232,48 @@ mkdir -p ${basedir}/flash/data/app/
 wget -P ${basedir}/flash/data/app/ http://jackpal.github.com/Android-Terminal-Emulator/downloads/Term.apk
 
 # Compress filesystem and add to our flashable zip
-tar jcvf ${basedir}/flash/data/local/kali/kalifs.tar.bz2 ${basedir}kali-$architecture
-
+tar jcvf ${basedir}/flash/data/local/kali/kalifs.tar.bz2 kali-$architecture
 
 #####################################################
 # Create Nexus 10 Kernel (4.4+)
 #####################################################
-# Set paths
+# Set path for Kernel building
 export ARCH=arm
 export SUBARCH=arm
 export CROSS_COMPILE=${basedir}/toolchain/bin/arm-eabi-
 # Get android toolchain to compile kernel
 git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-eabi-4.8 ${basedir}/toolchain
+
 # Using Thunderkat kernel but feel free to change
 git clone https://github.com/craigacgomez/kernel_samsung_manta.git -b thunderkat ${basedir}/kernel
 cd ${basedir}/kernel
+
 # Applying wireless patches
 mkdir -p ../patches
 wget http://patches.aircrack-ng.org/mac80211.compat08082009.wl_frag+ack_v1.patch -O ../patches/mac80211.patch
 wget http://patches.aircrack-ng.org/channel-negative-one-maxim.patch -O ../patches/negative.patch
 patch -p1 --no-backup-if-mismatch < ../patches/mac80211.patch
 patch -p1 --no-backup-if-mismatch < ../patches/negative.patch
+
+# Clean kernel folder, enable default config, overwrite .config with one containing enabled wireless and bluetooth devices
 make clean
 make thunderkat_manta_defconfig
 wget https://raw.githubusercontent.com/binkybear/kali-scripts/master/defconfigs/nexus10-thunderkat/thunderkali_defconfig -O .config
 make -j $(grep -c processor /proc/cpuinfo)
+
+# Copy kernel to flashable kernel folder
 cp ${basedir}/kernel/arch/arm/boot/zImage ${basedir}/flash/kernel/kernel
 cd ${basedir}
 
+# Attach kernel builder to updater-script
 cat << EOF >> ${basedir}/flash/META-INF/com/google/android/updater-script
 assert(getprop("ro.product.device") == "manta" || getprop("ro.build.product") == "manta");
 ui_print("ThunderKat Kernel - Nexus 10/Manta - Android KitKat 4.4.3/4.4.2/4.4.1");
 ui_print("* MODIFIED FOR KALI LINUX *");
-show_progress(0.500000, 0);
 ui_print("Mounting system...");
 mount("ext4", "EMMC", "/dev/block/platform/dw_mmc.0/by-name/system", "/system");
 ui_print("Deleting old kernel modules...");
 delete_recursive("/system/modules");
-show_progress(0.200000, 0);
-show_progress(0.200000, 10);
 ui_print("Installing kernel...");
 package_extract_dir("kernel", "/tmp");
 set_perm(0, 0, 0777, "/tmp/mkbootimg.sh");
@@ -282,7 +284,6 @@ run_program("/sbin/busybox", "dd", "if=/dev/block/platform/dw_mmc.0/by-name/boot
 run_program("/tmp/unpackbootimg", "-i", "/tmp/boot.img", "-o", "/tmp/");
 run_program("/tmp/mkbootimg.sh");
 run_program("/sbin/busybox", "dd", "if=/tmp/newboot.img", "of=/dev/block/platform/dw_mmc.0/by-name/boot");
-show_progress(0.100000, 0);
 unmount("/system");
 EOF
 
