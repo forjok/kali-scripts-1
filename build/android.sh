@@ -236,6 +236,11 @@ mkdir -p ${basedir}/flash/data/local/ ${basedir}/flash/data/tmp_kali ${basedir}/
 wget -P http://benno.id.au/android/busybox ${basedir}/flash/busybox
 wget -P ${basedir}/flash/data/app/ http://jackpal.github.com/Android-Terminal-Emulator/downloads/Term.apk
 
+# Download external usb firmware
+wget https://github.com/binkybear/kali-scripts/raw/master/firmware/carl9170-1.fw -O ${basedir}/flash/system/etc/firmware/carl9170-1.fw
+wget https://github.com/binkybear/kali-scripts/raw/master/firmware/htc_7010.fw -O ${basedir}/flash/system/etc/firmware/htc_7010.fw
+wget https://github.com/binkybear/kali-scripts/raw/master/firmware/htc_9271.fw -O ${basedir}/flash/system/etc/firmware/htc_9271.fw
+wget https://github.com/binkybear/kali-scripts/raw/master/firmware/rt3070.bin -O ${basedir}/flash/system/etc/firmware/rt3070.bin
 
 # tmp kali script used to extract rootfs to /data/local/
 cat << EOF > ${basedir}/flash/data/tmp_kali/extractkali.sh 
