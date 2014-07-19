@@ -5,6 +5,14 @@
 # Possibly use adb to send to device
 # apt-get install -y android-sdk
 # zip needed later for making flashable zip image
+
+#f_check(){}
+#read -p "Enter version number, e.g. 0.01:" version
+#basedir=`pwd`/android-$version
+#if [-d "`pwd`/android-$version"]; then
+# echo "Folder already exsists, use a different version number"
+#fi
+
 apt-get install -y zip
 
 if [[ $# -eq 0 ]] ; then
@@ -24,6 +32,8 @@ fi
 # Unset CROSS_COMPILE so that if there is any native compiling needed it doesn't
 # get cross compiled.
 unset CROSS_COMPILE
+
+#f_rootfs(){}
 
 # Package installations for various sections.
 
@@ -60,7 +70,10 @@ EOF
 echo "kali" > kali-$architecture/etc/hostname
 
 # fix for TUN symbolic link to enable programs like openvpn
+# set terminal length to 80 because root destroy terminal length
+
 cat << EOF > kali-$architecture/root/.bash_profile
+stty columns 80
 if [ ! -d "/dev/net/" ]; then
   mkdir -p /dev/net
   ln -s /dev/tun /dev/net/tun
@@ -88,7 +101,7 @@ cat << EOF > kali-$architecture/etc/resolv.conf
 #opendns
 nameserver 208.67.222.222
 nameserver 208.67.220.220
-#googldns
+#google dns
 nameserver 8.8.8.8
 nameserver 8.8.4.4
 EOF
@@ -223,6 +236,7 @@ umount kali-$architecture/proc
 #  /META-INF/com/google/android/updater-binary - Binary file for edify script
 #  /META-INF/com/google/android/updater-script - Edify script to install Kali 
 #####################################################
+#f_flashzip(){}
 
 # Create base flashable zip
 git clone https://github.com/binkybear/flash.git ${basedir}/flash
@@ -237,6 +251,8 @@ tar jcvf ${basedir}/flash/data/local/kali/kalifs.tar.bz2 kali-$architecture
 #####################################################
 # Create Nexus 10 Kernel (4.4+)
 #####################################################
+#f_nexus10_kernel(){}
+
 # Set path for Kernel building
 export ARCH=arm
 export SUBARCH=arm
