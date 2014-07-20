@@ -81,20 +81,17 @@ fi
 EOF
 
 cat << EOF > kali-$architecture/etc/hosts
-127.0.0.1       kali    localhost
+127.0.0.1       localhost
 ::1             localhost ip6-localhost ip6-loopback
-fe00::0         ip6-localnet
-ff00::0         ip6-mcastprefix
-ff02::1         ip6-allnodes
-ff02::2         ip6-allrouters
 EOF
 
 cat << EOF > kali-$architecture/etc/network/interfaces
 auto lo
 iface lo inet loopback
 
-auto wlan0
-iface wlan0 inet dhcp
+auto eth0
+iface eth0 inet dhcp
+
 EOF
 
 cat << EOF > kali-$architecture/etc/resolv.conf
@@ -199,8 +196,8 @@ cap=kali-$architecture/captures
 mkdir -p kali-$architecture/sdcard kali-$architecture/system
 mkdir -p $cap/evilap $cap/ettercap $cap/kismet/db $cap/nmap $cap/sslstrip $cap/tshark $cap/wifite
 
-# TEST CHROOT FOR DEBGGING
-# LANG=C chroot kali-$architecture
+# Add postgresql user to inet so it can access network
+LANG=C chroot kali-$architecture "groupadd -g 3004 inet; usermod -G inet postgres; groupadd -g 3003 inet; "
 
 CLEANUP STAGE
 
