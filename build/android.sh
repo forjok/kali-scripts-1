@@ -275,9 +275,10 @@ cd ${basedir}/kernel
 # Applying wireless patches
 mkdir -p ../patches
 wget http://patches.aircrack-ng.org/mac80211.compat08082009.wl_frag+ack_v1.patch -O ../patches/mac80211.patch
-wget http://patches.aircrack-ng.org/channel-negative-one-maxim.patch -O ../patches/negative.patch
+# negative one may not be necessary anymore
+# wget http://patches.aircrack-ng.org/channel-negative-one-maxim.patch -O ../patches/negative.patch
 patch -p1 --no-backup-if-mismatch < ../patches/mac80211.patch
-patch -p1 --no-backup-if-mismatch < ../patches/negative.patch
+# patch -p1 --no-backup-if-mismatch < ../patches/negative.patch
 
 # Clean kernel folder, enable default config, overwrite .config with one containing enabled wireless and bluetooth devices
 make clean
