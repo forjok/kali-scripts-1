@@ -244,14 +244,25 @@ git clone https://github.com/binkybear/flash.git ${basedir}/flash
 # Add terminal application to zip
 mkdir -p ${basedir}/flash/data/app/
 wget -P ${basedir}/flash/data/app/ http://jackpal.github.com/Android-Terminal-Emulator/downloads/Term.apk
+# Add BlueNMEA for Kismet GPS support
+wget -P ${basedir}/flash/data/app/ http://max.kellermann.name/download/blue-nmea/BlueNMEA-2.1.apk
 
 # Compress filesystem and add to our flashable zip
-tar jcvf ${basedir}/flash/data/local/kali/kalifs.tar.bz2 kali-$architecture
+mkdir -p ${basedir}/flash/data/local/
+tar jcvf ${basedir}/flash/data/local/kalifs.tar.bz2 ${basedir}/kali-$architecture
 
 #####################################################
 # Create Nexus 10 Kernel (4.4+)
 #####################################################
 #f_nexus10_kernel(){}
+
+# Create seperate kernel flashable zip in case the kernel just needs to be flashed again
+
+git clone https://github.com/binkybear/flash.git ${basedir}/flashkernel
+rm -rf ${basedir}/flashkernel/data
+rm -rf ${basedir}/flashkernel/system/bin
+rm -rf ${basedir}/flashkernel/xbin/
+rm -rf ${basedir}/flashkernel/META-INF/com/google/android/updater-script
 
 # Set path for Kernel building
 export ARCH=arm
@@ -279,10 +290,11 @@ make -j $(grep -c processor /proc/cpuinfo)
 
 # Copy kernel to flashable kernel folder
 cp ${basedir}/kernel/arch/arm/boot/zImage ${basedir}/flash/kernel/kernel
+cp ${basedir}/kernel/arch/arm/boot/zImage ${basedir}/flashkernel/kernel/kernel
 cd ${basedir}
 
 # Attach kernel builder to updater-script
-cat << EOF >> ${basedir}/flash/META-INF/com/google/android/updater-script
+cat << EOF > ${basedir}/flashkernel/META-INF/com/google/android/updater-script
 assert(getprop("ro.product.device") == "manta" || getprop("ro.build.product") == "manta");
 ui_print("ThunderKat Kernel - Nexus 10/Manta - Android KitKat 4.4.3/4.4.2/4.4.1");
 ui_print("* MODIFIED FOR KALI LINUX *");
@@ -302,6 +314,34 @@ run_program("/tmp/mkbootimg.sh");
 run_program("/sbin/busybox", "dd", "if=/tmp/newboot.img", "of=/dev/block/platform/dw_mmc.0/by-name/boot");
 unmount("/system");
 EOF
+
+# Adds kernel building script to flashable zip also.  We should handle this better in future updates.
+cat ${basedir}/flashkernel/META-INF/com/google/android/updater-script >> ${basedir}/flash/META-INF/com/google/android/updater-script
+
+#####################################################
+# Zip and save 
+#####################################################
+#f_zip_save(){}
+cd ${basedir}/flash/
+zip -r6 update-kali$1.zip *
+mv update-kali$1.zip ${basedir}
+cd {$basedir}
+# Generate sha1sum
+echo "Generating sha1sum for update-kali$1.zip"
+sha1sum update-kali$1.zip > ${basedir}/update-kali$1.sha1sum
+echo "Flashable Kali zip now located at ${basedir}/update-kali$1.zip"
+echo "Transfer file to device and flash in recovery"
+
+#f_zip_kernel_save(){}
+cd ${basedir}/flashkernel/
+zip -r6 kernel-kali$1.zip *
+mv kernel-kali$1.zip ${basedir}
+cd {$basedir}
+# Generate sha1sum
+echo "Generating sha1sum for kernelkali$1.zip"
+sha1sum kernel-kali$1.zip > ${basedir}/kernel-kali$1.sha1sum
+echo "Kernel can be flashed seperatley if needed using kernel-kali$1.zip"
+echo "Transfer file to device and flash in recovery"
 
 # Clean up all the temporary build stuff and remove the directories.
 # Comment this out to keep things around if you want to see what may have gone
