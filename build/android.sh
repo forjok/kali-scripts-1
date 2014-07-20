@@ -334,7 +334,7 @@ echo "Transfer file to device and flash in recovery"
 cd ${basedir}/flashkernel/
 zip -r6 kernel-kali$1.zip *
 mv kernel-kali$1.zip ${basedir}
-cd {$basedir}
+cd ${basedir}
 # Generate sha1sum
 echo "Generating sha1sum for kernelkali$1.zip"
 sha1sum kernel-kali$1.zip > ${basedir}/kernel-kali$1.sha1sum
